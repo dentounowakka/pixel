@@ -2,134 +2,167 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="description" content="2枚の画像を重ねて、ピクセル距離と実寸(mm)を測定できるPWA対応ツールです。">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="icon" href="./icons/icon-192.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="./icons/icon-192.svg">
     <title>ピクセル・実寸(mm)距離測定ツール（2枚重ね版）</title>
     <style>
+        :root {
+            color-scheme: light;
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --accent: #f97316;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --surface: #ffffff;
+            --surface-soft: #f8fafc;
+            --border: #d7deea;
+            --text: #172033;
+            --muted: #64748b;
+            --shadow: 0 12px 30px rgba(15, 23, 42, 0.10);
+        }
+        * { box-sizing: border-box; }
         body {
-            font-family: sans-serif;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             margin: 0;
-            padding: 15px;
-            background-color: #f5f5f5;
+            padding: 18px;
+            background: linear-gradient(135deg, #eef5ff 0%, #f8fafc 55%, #fff7ed 100%);
+            color: var(--text);
+        }
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+            margin-bottom: 14px;
+        }
+        h1 { font-size: clamp(20px, 3vw, 30px); margin: 0 0 4px; }
+        .lead { margin: 0; color: var(--muted); }
+        .toolbar, .panel {
+            background: rgba(255,255,255,0.92);
+            border: 1px solid rgba(215, 222, 234, 0.9);
+            border-radius: 18px;
+            box-shadow: var(--shadow);
         }
         .toolbar {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 16px;
             margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 14px;
+            align-items: stretch;
         }
-        .file-inputs {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            background: #f0f0f0;
-            padding: 8px;
-            border-radius: 6px;
+        .control-card {
+            background: var(--surface-soft);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 12px;
         }
-        .file-inputs label {
-            font-size: 12px;
-            font-weight: bold;
-            color: #444;
-        }
+        .control-card h2 { font-size: 14px; margin: 0 0 10px; color: #334155; }
+        .file-row, .inline-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+        .file-row label { min-width: 52px; font-size: 13px; font-weight: 700; }
         button, input, select {
-            padding: 8px 12px;
+            padding: 9px 12px;
             font-size: 14px;
-            cursor: pointer;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
             background: white;
         }
-        button:hover {
-            background: #eee;
-        }
-        button.active {
-            background: #d32f2f;
-            color: white;
-            border-color: #d32f2f;
-        }
-        .scale-config {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            background: #e3f2fd;
-            padding: 5px 10px;
-            border-radius: 4px;
-        }
+        input[type="file"] { max-width: 100%; }
+        input[type="range"] { width: 135px; padding: 0; cursor: pointer; }
+        button { cursor: pointer; font-weight: 700; transition: transform .12s ease, background .12s ease; }
+        button:hover { transform: translateY(-1px); background: #eff6ff; }
+        button.primary { background: var(--primary); color: white; border-color: var(--primary); }
+        button.primary:hover { background: var(--primary-dark); }
+        button.active { background: var(--danger); color: white; border-color: var(--danger); }
+        button:disabled { opacity: .5; cursor: not-allowed; transform: none; }
         .result {
-            font-size: 18px;
-            font-weight: bold;
-            color: #d32f2f;
-            margin-left: auto; /* 右寄せ */
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: minmax(180px, 1fr) 2fr;
+            gap: 12px;
+            align-items: center;
+            background: #0f172a;
+            color: white;
+            border-radius: 16px;
+            padding: 14px 16px;
         }
-        .status-msg {
-            font-size: 12px;
-            color: #666;
-            font-weight: normal;
-        }
+        #resultDisplay { font-size: clamp(22px, 3.5vw, 34px); font-weight: 800; color: #fbbf24; }
+        .status-msg { font-size: 14px; color: #dbeafe; line-height: 1.6; }
+        .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 15px; }
         .canvas-container {
-            width: 100%;
-            height: 70vh;
-            background-color: #e0e0e0;
-            border: 1px solid #ccc;
-            overflow: auto; /* 画像が大きい場合はスクロールバーを表示 */
-            position: relative;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+            width: 100%; height: 66vh; min-height: 380px;
+            background-color: #dbe4ef;
+            background-image: linear-gradient(45deg, #cbd5e1 25%, transparent 25%), linear-gradient(-45deg, #cbd5e1 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #cbd5e1 75%), linear-gradient(-45deg, transparent 75%, #cbd5e1 75%);
+            background-size: 28px 28px; background-position: 0 0, 0 14px, 14px -14px, -14px 0;
+            border: 1px solid var(--border); overflow: auto; position: relative; border-radius: 18px; box-shadow: inset 0 0 18px rgba(15,23,42,.12);
         }
-        canvas {
-            transform-origin: top left;
-            cursor: crosshair;
-        }
+        .canvas-container.dragover { outline: 4px solid rgba(37, 99, 235, .35); }
+        canvas { transform-origin: top left; cursor: crosshair; display: block; }
+        .panel { padding: 16px; }
+        .panel h2 { font-size: 16px; margin: 0 0 10px; }
+        .panel ol { padding-left: 1.3em; color: var(--muted); line-height: 1.7; }
+        .pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 999px; background: #e0f2fe; color: #075985; font-size: 12px; font-weight: 700; }
+        @media (max-width: 900px) { .workspace { grid-template-columns: 1fr; } .result { grid-template-columns: 1fr; } body { padding: 12px; } }
     </style>
 </head>
 <body>
+    <header class="app-header">
+        <div>
+            <h1>ピクセル・実寸距離測定ツール</h1>
+            <p class="lead">2枚の画像を重ね、基準線からmm換算できます。オフライン利用・インストールにも対応しました。</p>
+        </div>
+        <button id="installButton" class="primary" hidden>アプリをインストール</button>
+    </header>
 
     <div class="toolbar">
-        <div class="file-inputs">
-            <div>
-                <label for="imageLoader1">画像1 (不透明度50%):</label>
-                <input type="file" id="imageLoader1" accept="image/*">
-            </div>
-            <div>
-                <label for="imageLoader2">画像2 (不透明度50%):</label>
-                <input type="file" id="imageLoader2" accept="image/*">
-            </div>
-        </div>
-        
-        <div>
-            <button id="zoomOut">➖ 縮小</button>
-            <span id="zoomLevel" style="margin: 0 10px;">100%</span>
-            <button id="zoomIn">➕ 拡大</button>
-        </div>
-
-        <div class="scale-config">
-            <span>基準の長さ:</span>
-            <input type="number" id="knownDistance" value="50" style="width: 60px; padding: 6px;">
-            <span>mm</span>
-            <button id="btnSetScale">📐 基準線を登録</button>
-        </div>
-
-        <button id="clearPoints">点をクリア</button>
-
+        <section class="control-card">
+            <h2>1. 画像を読み込み</h2>
+            <div class="file-row"><label for="imageLoader1">画像1</label><input type="file" id="imageLoader1" accept="image/*"></div>
+            <div class="file-row"><label for="imageLoader2">画像2</label><input type="file" id="imageLoader2" accept="image/*"></div>
+            <p class="pill">ドラッグ&ドロップ対応</p>
+        </section>
+        <section class="control-card">
+            <h2>2. 表示を調整</h2>
+            <div class="inline-row"><button id="zoomOut">➖ 縮小</button><strong id="zoomLevel">100%</strong><button id="zoomIn">➕ 拡大</button></div>
+            <div class="inline-row"><button id="fitToScreen">画面に合わせる</button><button id="resetZoom">100%に戻す</button></div>
+            <div class="inline-row"><label>画像1濃度 <input type="range" id="opacity1" min="0" max="100" value="50"></label><span id="opacity1Value">50%</span></div>
+            <div class="inline-row"><label>画像2濃度 <input type="range" id="opacity2" min="0" max="100" value="50"></label><span id="opacity2Value">50%</span></div>
+        </section>
+        <section class="control-card">
+            <h2>3. 基準と測定</h2>
+            <div class="inline-row"><span>基準の長さ</span><input type="number" id="knownDistance" value="50" min="0.01" step="0.01" style="width: 88px;"><span>mm</span></div>
+            <div class="inline-row"><button id="btnSetScale" class="primary">📐 基準線を登録</button><button id="clearPoints">点をクリア</button><button id="undoPoint">1点戻す</button></div>
+        </section>
         <div class="result">
             <div id="resultDisplay">距離: -</div>
-            <div id="statusDisplay" class="status-msg">まずは画像（1枚以上）を読み込んでください</div>
+            <div id="statusDisplay" class="status-msg">まずは画像（1枚以上）を読み込んでください。</div>
         </div>
     </div>
 
-    <div class="canvas-container" id="canvasContainer">
-        <canvas id="canvas"></canvas>
-    </div>
+    <main class="workspace">
+        <div class="canvas-container" id="canvasContainer"><canvas id="canvas"></canvas></div>
+        <aside class="panel">
+            <h2>使い方・ショートカット</h2>
+            <ol>
+                <li>画像を選択、またはキャンバスへドロップします。</li>
+                <li>必要に応じて濃度・ズームを調整します。</li>
+                <li>「基準線を登録」で既知の長さの両端をクリックします。</li>
+                <li>測りたい2点をクリックするとpx/mmを表示します。</li>
+            </ol>
+            <p><span class="pill">+ / -</span> 拡大・縮小</p>
+            <p><span class="pill">0</span> 100%表示</p>
+            <p><span class="pill">Esc</span> 点をクリア</p>
+        </aside>
+    </main>
 
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+        const canvasContainer = document.getElementById('canvasContainer');
         const imageLoader1 = document.getElementById('imageLoader1');
         const imageLoader2 = document.getElementById('imageLoader2');
         const resultDisplay = document.getElementById('resultDisplay');
@@ -137,208 +170,114 @@
         const zoomLevelDisplay = document.getElementById('zoomLevel');
         const btnSetScale = document.getElementById('btnSetScale');
         const knownDistanceInput = document.getElementById('knownDistance');
+        const opacity1 = document.getElementById('opacity1');
+        const opacity2 = document.getElementById('opacity2');
+        const opacity1Value = document.getElementById('opacity1Value');
+        const opacity2Value = document.getElementById('opacity2Value');
+        const installButton = document.getElementById('installButton');
 
-        let img1 = null;
-        let img2 = null;
-        let points = [];
-        let zoom = 1.0;
+        let img1 = null, img2 = null, points = [], zoom = 1.0, pxPerMm = null, isSettingScaleMode = false, deferredInstallPrompt = null;
 
-        // スケール情報 (1mmあたりのピクセル数)
-        let pxPerMm = null; 
-        let isSettingScaleMode = false; // 基準線登録モードフラグ
+        function loadFile(file, slot) {
+            if (!file || !file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onload = event => {
+                const img = new Image();
+                img.onload = () => { slot === 1 ? img1 = img : img2 = img; statusDisplay.textContent = `画像${slot}を読み込みました。測定したい2点をクリックしてください。`; resetCanvasSize(); };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        imageLoader1.addEventListener('change', e => loadFile(e.target.files[0], 1));
+        imageLoader2.addEventListener('change', e => loadFile(e.target.files[0], 2));
 
-        // キャンバスのサイズを画像に合わせてリセット・再描画
+        ['dragenter', 'dragover'].forEach(name => canvasContainer.addEventListener(name, e => { e.preventDefault(); canvasContainer.classList.add('dragover'); }));
+        ['dragleave', 'drop'].forEach(name => canvasContainer.addEventListener(name, e => { e.preventDefault(); canvasContainer.classList.remove('dragover'); }));
+        canvasContainer.addEventListener('drop', e => Array.from(e.dataTransfer.files).slice(0, 2).forEach((file, index) => loadFile(file, index + 1)));
+
         function resetCanvasSize() {
-            // 読み込まれている画像のうち、大きい方のサイズにキャンバスを合わせる
-            let w = 0, h = 0;
-            if (img1) { w = img1.width; h = img1.height; }
-            if (img2) { w = Math.max(w, img2.width); h = Math.max(h, img2.height); }
-
-            if (w > 0 && h > 0) {
-                canvas.width = w;
-                canvas.height = h;
-            }
+            const w = Math.max(img1?.width || 0, img2?.width || 0);
+            const h = Math.max(img1?.height || 0, img2?.height || 0);
+            if (w && h) { canvas.width = w; canvas.height = h; }
             draw();
         }
-
-        // 画像1の読み込み処理
-        imageLoader1.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) {
-                img1 = null;
-                resetCanvasSize();
-                return;
-            }
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                img1 = new Image();
-                img1.onload = function() {
-                    statusDisplay.textContent = "画像1が読み込まれました。";
-                    resetCanvasSize();
-                }
-                img1.src = event.target.result;
-            }
-            reader.readAsDataURL(file);
+        function changeZoom(delta) { zoom = Math.min(8, Math.max(0.1, zoom + delta)); updateZoomDisplay(); }
+        function setZoom(value) { zoom = Math.min(8, Math.max(0.1, value)); updateZoomDisplay(); }
+        function updateZoomDisplay() { canvas.style.transform = `scale(${zoom})`; zoomLevelDisplay.textContent = `${Math.round(zoom * 100)}%`; draw(); }
+        document.getElementById('zoomIn').addEventListener('click', () => changeZoom(0.2));
+        document.getElementById('zoomOut').addEventListener('click', () => changeZoom(-0.2));
+        document.getElementById('resetZoom').addEventListener('click', () => setZoom(1));
+        document.getElementById('fitToScreen').addEventListener('click', () => {
+            if (!canvas.width || !canvas.height) return;
+            setZoom(Math.min(canvasContainer.clientWidth / canvas.width, canvasContainer.clientHeight / canvas.height, 1));
         });
+        [opacity1, opacity2].forEach((input, index) => input.addEventListener('input', () => { document.getElementById(`opacity${index + 1}Value`).textContent = `${input.value}%`; draw(); }));
 
-        // 画像2の読み込み処理
-        imageLoader2.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) {
-                img2 = null;
-                resetCanvasSize();
-                return;
-            }
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                img2 = new Image();
-                img2.onload = function() {
-                    statusDisplay.textContent = "画像2が読み込まれました。";
-                    resetCanvasSize();
-                }
-                img2.src = event.target.result;
-            }
-            reader.readAsDataURL(file);
-        });
-
-        // ズーム機能
-        document.getElementById('zoomIn').addEventListener('click', () => {
-            zoom += 0.2;
-            updateZoomDisplay();
-            draw();
-        });
-
-        document.getElementById('zoomOut').addEventListener('click', () => {
-            zoom = Math.max(0.2, zoom - 0.2);
-            updateZoomDisplay();
-            draw();
-        });
-
-        function updateZoomDisplay() {
-            canvas.style.transform = `scale(${zoom})`;
-            zoomLevelDisplay.textContent = `${Math.round(zoom * 100)}%`;
-        }
-
-        // 「基準線を登録」ボタンの挙動
         btnSetScale.addEventListener('click', () => {
             if (!img1 && !img2) return;
-            isSettingScaleMode = true;
-            points = []; // 新たに2点打ってもらうためにリセット
-            btnSetScale.classList.add('active');
-            statusDisplay.textContent = "【基準設定モード】実際の長さの2点（円柱の端など）をクリックしてください。";
-            draw();
-            updateResult();
+            isSettingScaleMode = true; points = []; btnSetScale.classList.add('active');
+            statusDisplay.textContent = '【基準設定モード】実際の長さが分かる2点をクリックしてください。'; draw(); updateResult();
         });
-
-        // クリックで点を打つ処理
-        canvas.addEventListener('mousedown', function(e) {
+        canvas.addEventListener('mousedown', e => {
             if (!img1 && !img2) return;
-
             const rect = canvas.getBoundingClientRect();
             const x = (e.clientX - rect.left) / zoom;
             const y = (e.clientY - rect.top) / zoom;
-
-            if (points.length >= 2) {
-                points = [];
-            }
-
-            points.push({ x: x, y: y });
-
-            // 2点打たれた瞬間のモード判定
+            if (points.length >= 2) points = [];
+            points.push({ x, y });
             if (points.length === 2 && isSettingScaleMode) {
-                const dx = points[1].x - points[0].x;
-                const dy = points[1].y - points[0].y;
-                const pxDist = Math.sqrt(dx * dx + dy * dy);
-                const knownMm = parseFloat(knownDistanceInput.value) || 1.0;
-                
-                // 1mmあたりのピクセル数を確定
-                pxPerMm = pxDist / knownMm; 
-                isSettingScaleMode = false;
-                btnSetScale.classList.remove('active');
-                statusDisplay.textContent = `基準設定完了: ${knownMm}mm = ${pxDist.toFixed(1)}px に固定しました。`;
-            } else if (points.length === 2 && !isSettingScaleMode) {
-                statusDisplay.textContent = "計測完了。次の2点をクリックすると再計測できます。";
-            } else if (points.length === 1) {
-                statusDisplay.textContent = isSettingScaleMode ? "基準の2点目をクリックしてください。" : "測定の2点目をクリックしてください。";
-            }
-
-            draw();
-            updateResult();
+                const pxDist = getPixelDistance();
+                const knownMm = Math.max(parseFloat(knownDistanceInput.value) || 1, 0.01);
+                pxPerMm = pxDist / knownMm;
+                isSettingScaleMode = false; btnSetScale.classList.remove('active');
+                statusDisplay.textContent = `基準設定完了: ${knownMm}mm = ${pxDist.toFixed(1)}px。続けて測定できます。`;
+            } else if (points.length === 2) statusDisplay.textContent = '計測完了。次の2点をクリックすると再計測できます。';
+            else statusDisplay.textContent = isSettingScaleMode ? '基準の2点目をクリックしてください。' : '測定の2点目をクリックしてください。';
+            draw(); updateResult();
         });
-
-        // 点のクリア
-        document.getElementById('clearPoints').addEventListener('click', () => {
-            points = [];
-            draw();
-            updateResult();
-            if(!isSettingScaleMode) {
-                statusDisplay.textContent = "点をクリアしました。";
-            }
+        document.getElementById('clearPoints').addEventListener('click', clearPoints);
+        document.getElementById('undoPoint').addEventListener('click', () => { points.pop(); draw(); updateResult(); statusDisplay.textContent = '最後の点を取り消しました。'; });
+        function clearPoints() { points = []; draw(); updateResult(); if (!isSettingScaleMode) statusDisplay.textContent = '点をクリアしました。'; }
+        document.addEventListener('keydown', e => {
+            if (['INPUT', 'SELECT'].includes(document.activeElement.tagName)) return;
+            if (e.key === '+') changeZoom(0.2); if (e.key === '-') changeZoom(-0.2); if (e.key === '0') setZoom(1); if (e.key === 'Escape') clearPoints();
         });
-
-        // 描画処理
         function draw() {
             if (!img1 && !img2) return;
-
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // --- 画像の重ね合わせ（それぞれ透過度50%） ---
-            ctx.save();
-            ctx.globalAlpha = 0.5; // ここから下の描画の透過度を50%にする
-            
-            if (img1) {
-                ctx.drawImage(img1, 0, 0);
-            }
-            if (img2) {
-                ctx.drawImage(img2, 0, 0);
-            }
-            
-            ctx.restore(); // 透過設定を元に戻す（計測線や点に影響させないため）
-            // ----------------------------------------
-
-            const pointRadius = 5 / zoom;
-            const lineWidth = 2 / zoom;
-
-            // 点を描画（基準モードなら青、計測モードなら赤）
-            ctx.fillStyle = isSettingScaleMode ? '#0026ff' : '#ff0000';
-            ctx.strokeStyle = isSettingScaleMode ? '#0026ff' : '#ff0000';
-            
-            points.forEach(p => {
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, pointRadius, 0, Math.PI * 2);
-                ctx.fill();
-            });
-
-            // 2点あれば線を引く
-            if (points.length === 2) {
-                ctx.beginPath();
-                ctx.moveTo(points[0].x, points[0].y);
-                ctx.lineTo(points[1].x, points[1].y);
-                ctx.lineWidth = lineWidth;
-                ctx.stroke();
-            }
+            if (img1) { ctx.globalAlpha = Number(opacity1.value) / 100; ctx.drawImage(img1, 0, 0); }
+            if (img2) { ctx.globalAlpha = Number(opacity2.value) / 100; ctx.drawImage(img2, 0, 0); }
+            ctx.globalAlpha = 1;
+            const pointRadius = 6 / zoom, lineWidth = 3 / zoom;
+            ctx.fillStyle = isSettingScaleMode ? '#2563eb' : '#dc2626'; ctx.strokeStyle = ctx.fillStyle;
+            points.forEach((p, i) => { ctx.beginPath(); ctx.arc(p.x, p.y, pointRadius, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `${14 / zoom}px sans-serif`; ctx.fillText(String(i + 1), p.x + 8 / zoom, p.y - 8 / zoom); ctx.fillStyle = isSettingScaleMode ? '#2563eb' : '#dc2626'; });
+            if (points.length === 2) { ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y); ctx.lineTo(points[1].x, points[1].y); ctx.lineWidth = lineWidth; ctx.stroke(); }
         }
-
-        // 距離の計算と表示
+        function getPixelDistance() { const dx = points[1].x - points[0].x, dy = points[1].y - points[0].y; return Math.sqrt(dx * dx + dy * dy); }
         function updateResult() {
             if (points.length === 2) {
-                const dx = points[1].x - points[0].x;
-                const dy = points[1].y - points[0].y;
-                const pxDistance = Math.sqrt(dx * dx + dy * dy);
-                
-                if (pxPerMm) {
-                    // 基準が設定されていればmm換算も表示
-                    const mmDistance = pxDistance / pxPerMm;
-                    resultDisplay.innerHTML = `<div>${mmDistance.toFixed(2)} mm</div><div style="font-size:12px; color:#777;">(${pxDistance.toFixed(1)} px)</div>`;
-                } else {
-                    // 基準がない場合はpxのみ
-                    resultDisplay.textContent = `${pxDistance.toFixed(1)} px`;
+                const pxDistance = getPixelDistance();
+                resultDisplay.innerHTML = pxPerMm ? `<div>${(pxDistance / pxPerMm).toFixed(2)} mm</div><div style="font-size:13px;color:#bfdbfe;">${pxDistance.toFixed(1)} px</div>` : `${pxDistance.toFixed(1)} px`;
+            } else resultDisplay.textContent = points.length === 1 ? '測定中...' : '距離: -';
+        }
+        window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstallPrompt = e; installButton.hidden = false; });
+        installButton.addEventListener('click', async () => { if (!deferredInstallPrompt) return; deferredInstallPrompt.prompt(); await deferredInstallPrompt.userChoice; deferredInstallPrompt = null; installButton.hidden = true; });
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', async () => {
+                try {
+                    const registration = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
+                    await registration.update();
+                    statusDisplay.textContent = navigator.onLine ? statusDisplay.textContent : 'オフラインモードで表示中です。';
+                } catch (error) {
+                    statusDisplay.textContent = 'PWA登録はHTTPSまたはlocalhostで有効です。';
                 }
-            } else if (points.length === 1) {
-                resultDisplay.textContent = `測定中...`;
-            } else {
-                resultDisplay.textContent = `-`;
-            }
+            });
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (refreshing) return;
+                refreshing = true;
+                window.location.reload();
+            });
         }
     </script>
 </body>
