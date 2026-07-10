@@ -2,7 +2,7 @@
   "name": "ピクセル・実寸距離測定ツール",
   "short_name": "Pixel測定",
   "description": "2枚の画像を重ねてピクセル距離と実寸(mm)を測定できるPWAツールです。",
-  "start_url": "./ピクセル計算2.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f5f7fb",

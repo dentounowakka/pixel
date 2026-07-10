@@ -1,6 +1,6 @@
 const CACHE_VERSION = '2026-07-10-2';
 const CACHE_NAME = `pixel-measure-pwa-${CACHE_VERSION}`;
-const HTML_FALLBACK = './ピクセル計算2.html';
+const HTML_FALLBACK = './index.html';
 const ASSETS = [
   HTML_FALLBACK,
   './manifest.webmanifest',
@@ -46,7 +46,7 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(event.request.url);
   const isNavigation = event.request.mode === 'navigate';
-  const isAppShell = url.pathname.endsWith('/') || url.pathname.endsWith('/ピクセル計算2.html');
+  const isAppShell = url.pathname.endsWith('/') || url.pathname.endsWith('/index.html');
 
   if (isNavigation || isAppShell) {
     event.respondWith(networkFirst(event.request));
