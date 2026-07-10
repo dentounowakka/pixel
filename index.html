@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#d32f2f">
+    <meta name="description" content="2枚の画像を重ねて、ピクセル距離と実寸(mm)を測定できるPWA対応ツールです。">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="icon" href="./icons/icon-192.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="./icons/icon-192.svg">
     <title>ピクセル・実寸(mm)距離測定ツール（2枚重ね版）</title>
     <style>
         body {
@@ -86,6 +91,42 @@
             transform-origin: top left;
             cursor: crosshair;
         }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .opacity-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: #fff8e1;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        .opacity-controls input[type="range"] {
+            width: 120px;
+            vertical-align: middle;
+        }
+        .help-panel {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            color: #555;
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            padding: 10px 14px;
+        }
+        .help-panel strong {
+            color: #d32f2f;
+        }
+        .canvas-container.dragover {
+            outline: 4px solid rgba(211, 47, 47, 0.35);
+            outline-offset: -4px;
+        }
     </style>
 </head>
 <body>
@@ -93,19 +134,26 @@
     <div class="toolbar">
         <div class="file-inputs">
             <div>
-                <label for="imageLoader1">画像1 (不透明度50%):</label>
+                <label for="imageLoader1">画像1:</label>
                 <input type="file" id="imageLoader1" accept="image/*">
             </div>
             <div>
-                <label for="imageLoader2">画像2 (不透明度50%):</label>
+                <label for="imageLoader2">画像2:</label>
                 <input type="file" id="imageLoader2" accept="image/*">
             </div>
         </div>
         
-        <div>
+        <div class="control-group">
             <button id="zoomOut">➖ 縮小</button>
             <span id="zoomLevel" style="margin: 0 10px;">100%</span>
             <button id="zoomIn">➕ 拡大</button>
+            <button id="fitToScreen">画面に合わせる</button>
+            <button id="resetZoom">100%</button>
+        </div>
+
+        <div class="opacity-controls">
+            <label>画像1 濃度 <input type="range" id="opacity1" min="0" max="100" value="50"> <span id="opacity1Value">50%</span></label>
+            <label>画像2 濃度 <input type="range" id="opacity2" min="0" max="100" value="50"> <span id="opacity2Value">50%</span></label>
         </div>
 
         <div class="scale-config">
@@ -116,11 +164,16 @@
         </div>
 
         <button id="clearPoints">点をクリア</button>
+        <button id="undoPoint">1点戻す</button>
 
         <div class="result">
             <div id="resultDisplay">距離: -</div>
             <div id="statusDisplay" class="status-msg">まずは画像（1枚以上）を読み込んでください</div>
         </div>
+    </div>
+
+    <div class="help-panel">
+        <strong>使い方:</strong> 画像を選ぶかキャンバスへドラッグ&ドロップ → 必要なら「基準線を登録」 → 測りたい2点をクリック。ショートカット: <strong>+/-</strong> 拡大縮小、<strong>0</strong> 100%、<strong>Esc</strong> 点クリア。
     </div>
 
     <div class="canvas-container" id="canvasContainer">
@@ -137,6 +190,11 @@
         const zoomLevelDisplay = document.getElementById('zoomLevel');
         const btnSetScale = document.getElementById('btnSetScale');
         const knownDistanceInput = document.getElementById('knownDistance');
+        const canvasContainer = document.getElementById('canvasContainer');
+        const opacity1Input = document.getElementById('opacity1');
+        const opacity2Input = document.getElementById('opacity2');
+        const opacity1Value = document.getElementById('opacity1Value');
+        const opacity2Value = document.getElementById('opacity2Value');
 
         let img1 = null;
         let img2 = null;
@@ -161,6 +219,22 @@
             draw();
         }
 
+        function loadImageFile(file, slot) {
+            if (!file || !file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const image = new Image();
+                image.onload = function() {
+                    if (slot === 1) img1 = image;
+                    if (slot === 2) img2 = image;
+                    statusDisplay.textContent = `画像${slot}が読み込まれました。`;
+                    resetCanvasSize();
+                };
+                image.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
         // 画像1の読み込み処理
         imageLoader1.addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -169,16 +243,7 @@
                 resetCanvasSize();
                 return;
             }
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                img1 = new Image();
-                img1.onload = function() {
-                    statusDisplay.textContent = "画像1が読み込まれました。";
-                    resetCanvasSize();
-                }
-                img1.src = event.target.result;
-            }
-            reader.readAsDataURL(file);
+            loadImageFile(file, 1);
         });
 
         // 画像2の読み込み処理
@@ -189,16 +254,23 @@
                 resetCanvasSize();
                 return;
             }
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                img2 = new Image();
-                img2.onload = function() {
-                    statusDisplay.textContent = "画像2が読み込まれました。";
-                    resetCanvasSize();
-                }
-                img2.src = event.target.result;
-            }
-            reader.readAsDataURL(file);
+            loadImageFile(file, 2);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            canvasContainer.addEventListener(eventName, function(e) {
+                e.preventDefault();
+                canvasContainer.classList.add('dragover');
+            });
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            canvasContainer.addEventListener(eventName, function(e) {
+                e.preventDefault();
+                canvasContainer.classList.remove('dragover');
+            });
+        });
+        canvasContainer.addEventListener('drop', function(e) {
+            Array.from(e.dataTransfer.files).slice(0, 2).forEach((file, index) => loadImageFile(file, index + 1));
         });
 
         // ズーム機能
@@ -214,10 +286,30 @@
             draw();
         });
 
+        function setZoom(value) {
+            zoom = Math.min(8, Math.max(0.1, value));
+            updateZoomDisplay();
+            draw();
+        }
+
         function updateZoomDisplay() {
             canvas.style.transform = `scale(${zoom})`;
             zoomLevelDisplay.textContent = `${Math.round(zoom * 100)}%`;
         }
+
+        document.getElementById('resetZoom').addEventListener('click', () => setZoom(1));
+        document.getElementById('fitToScreen').addEventListener('click', () => {
+            if (!canvas.width || !canvas.height) return;
+            setZoom(Math.min(canvasContainer.clientWidth / canvas.width, canvasContainer.clientHeight / canvas.height, 1));
+        });
+
+        [opacity1Input, opacity2Input].forEach((input, index) => {
+            input.addEventListener('input', () => {
+                const valueLabel = index === 0 ? opacity1Value : opacity2Value;
+                valueLabel.textContent = `${input.value}%`;
+                draw();
+            });
+        });
 
         // 「基準線を登録」ボタンの挙動
         btnSetScale.addEventListener('click', () => {
@@ -267,13 +359,30 @@
         });
 
         // 点のクリア
-        document.getElementById('clearPoints').addEventListener('click', () => {
+        document.getElementById('clearPoints').addEventListener('click', clearPoints);
+
+        document.getElementById('undoPoint').addEventListener('click', () => {
+            points.pop();
+            draw();
+            updateResult();
+            statusDisplay.textContent = "最後の点を取り消しました。";
+        });
+
+        function clearPoints() {
             points = [];
             draw();
             updateResult();
             if(!isSettingScaleMode) {
                 statusDisplay.textContent = "点をクリアしました。";
             }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (['INPUT', 'SELECT'].includes(document.activeElement.tagName)) return;
+            if (e.key === '+') setZoom(zoom + 0.2);
+            if (e.key === '-') setZoom(zoom - 0.2);
+            if (e.key === '0') setZoom(1);
+            if (e.key === 'Escape') clearPoints();
         });
 
         // 描画処理
@@ -284,15 +393,14 @@
 
             // --- 画像の重ね合わせ（それぞれ透過度50%） ---
             ctx.save();
-            ctx.globalAlpha = 0.5; // ここから下の描画の透過度を50%にする
-            
             if (img1) {
+                ctx.globalAlpha = Number(opacity1Input.value) / 100;
                 ctx.drawImage(img1, 0, 0);
             }
             if (img2) {
+                ctx.globalAlpha = Number(opacity2Input.value) / 100;
                 ctx.drawImage(img2, 0, 0);
             }
-            
             ctx.restore(); // 透過設定を元に戻す（計測線や点に影響させないため）
             // ----------------------------------------
 
@@ -339,6 +447,19 @@
             } else {
                 resultDisplay.textContent = `-`;
             }
+        }
+
+
+        // PWA: Service Worker登録（表示不具合時はアプリ本体の描画を妨げない）
+        if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+            window.addEventListener('load', async () => {
+                try {
+                    const registration = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
+                    await registration.update();
+                } catch (error) {
+                    console.warn('Service Worker registration failed:', error);
+                }
+            });
         }
     </script>
 </body>
